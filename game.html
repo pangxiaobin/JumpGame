@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>跳跃的小象</title>
+    <style>
+        #game {
+            width: 800px;
+            height: 400px;
+            background-color: antiquewhite;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+<div id="game">
+    <img src="images/ren_r_1.gif" id='img'
+         style="position: fixed;margin-top: 360px; margin-left: 30px">
+    <p>分数: <font color="red" id="score">0</font></p>
+    <p>按enter键开始游戏</p>
+    <p>按空格键进行跳跃</p>
+</div>
+</body>
+<script type="text/javascript">
+	var flag = true; // 只执行一次init 的标志
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!window.AudioContext) {
+        alert('当前浏览器不支持Web Audio API');
+    }
+    function sound() {
+        // 参考文章 https://www.zhangxinxu.com/wordpress/2017/06/html5-web-audio-api-js-ux-voice/
+        var audioCtx = new AudioContext();
+        var oscillator = audioCtx.createOscillator();
+        // 创建一个GainNode,它可以控制音频的总音量
+        var gainNode = audioCtx.createGain();
+        // 把音量，音调和终节点进行关联
+        oscillator.connect(gainNode);
+        // audioCtx.destination返回AudioDestinationNode对象，表示当前audio context中所有节点的最终节点，一般表示音频渲染设备
+        gainNode.connect(audioCtx.destination);
+        // 指定音调的类型，其他还有square|triangle|sawtooth
+        oscillator.type = 'sine';
+        // 设置当前播放声音的频率，也就是最终播放声音的调调
+        oscillator.frequency.value = 196.00;
+        // 当前时间设置音量为0
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        // 0.01秒后音量为1
+        gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.01);
+        // 音调从当前时间开始播放
+        oscillator.start(audioCtx.currentTime);
+        // 1秒内声音慢慢降低，是个不错的停止声音的方法
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+        // 1秒后完全停止声音
+        oscillator.stop(audioCtx.currentTime + 1);
+    }
+    var oImage = document.getElementById('img');
+    function getObstacle() {
+        // 页面随机出现一个障碍物
+        var obstacle_list = ['images/comma_face_01.png', 'images/comma_face_02.png', 'images/comma_face_03.png', 'images/comma_face_04.png',
+            'images/comma_face_05.png', 'images/comma_face_06.png', 'images/comma_face_07.png', 'images/comma_face_08.png',
+            'images/comma_face_09.png', 'images/comma_face_10.png', 'images/comma_face_11.png', 'images/comma_face_12.png',
+            'images/comma_face_13.png', 'images/comma_face_14.png', 'images/comma_face_15.png','images/comma_face_16.png',
+            'images/comma_face_17.png','images/comma_face_18.png'];
+        var game = document.getElementById('game');
+        var x = game.offsetLeft;
+        var y = game.offsetTop;
+        var imageName = obstacle_list[parseInt(Math.random() * (obstacle_list.length))];
+        var oImg = document.createElement('img');
+        oImg.src = imageName;
+        oImg.style.width = '64px';
+        oImg.style.height = '64px';
+        oImg.style.position = 'absolute';
+        oImg.style.top = y + 400 - 64 + 'px';
+        oImg.style.left = x + 746 + 'px';
+        oImg.setAttribute("class", "obstacle");
+        game.appendChild(oImg);
+    }
+
+    function obstacleMove(speed) {
+        //障碍物进行移动
+        var obstacle = document.getElementsByClassName('obstacle')[0];
+        var pos = 0;
+        var x = obstacle.offsetLeft;
+        var id = setInterval(frame, speed);
+
+        function frame() {
+            if (pos === 800) {
+                //运行到区域外时，删除图片节点
+                clearInterval(id);
+                var game = document.getElementById('game');
+                game.removeChild(obstacle)
+            } else {
+                pos++;
+                obstacle.style.left = x - pos + "px";
+            }
+        }
+
+    }
+
+    function peopleGo() {
+        //  人物切换
+        var oImage = document.getElementById('img');
+        var image1 = 'ren_r_1.gif';
+        var image2 = 'ren_r_2.gif';
+        var imageSrc = getImageSrc(oImage.src);
+        if (imageSrc === image1) {
+            oImage.src = 'images/' + image2;
+        } else {
+            oImage.src = 'images/' + image1;
+        }
+    }
+
+    function move(obj, flag, height, speed, fn) {
+        // obj: 传入的对象 flag: 上移还是下移  height:高度  fn:回调函数
+        var n = 0;
+        var y = parseInt(obj.style.marginTop)
+        var timer = setInterval(function () {
+            n++;
+            if (flag === true) {
+                obj.style.marginTop = y - n + "px";
+            } else {
+                obj.style.marginTop = y + n + "px";
+            }
+
+
+            if (n >= height) {
+                clearInterval(timer);
+                fn && fn();
+            }
+        }, speed);
+    }
+
+    function getImageSrc(imagePath) {
+        var pos = imagePath.lastIndexOf('/');//从右边数'/'出现的位置
+        return imagePath.substr(pos + 1);//取出'/'后一位开始到末尾的子字符串
+    }
+
+    function smashTogether() {
+        // 碰撞监控
+        var obstacle = document.getElementsByClassName('obstacle');
+        if (obstacle.length > 0) {
+            var peopleWidth = oImage.offsetWidth;
+            var peopleHeight = oImage.offsetHeight;
+            var top = oImage.offsetTop;
+            var left = oImage.offsetLeft;
+            var x = obstacle[0].offsetLeft;
+            var y = obstacle[0].offsetTop;
+            if (((top >= y - peopleHeight) && (top <= y + peopleHeight)) && ((left >= x - peopleWidth) && (left <= x + peopleWidth))) {
+                alert('Game Over!')；
+				clearInterval(smashTogether_id);
+				clearInterval(obstacle_id);
+				clearInterval(score_id);
+				clearInterval(people_go);
+				clearInterval(smashTogether_id);
+				window.location.reload();
+			
+            }
+        }
+    }
+
+    function jump() {
+        clearInterval(people_go);
+        move(oImage, true, 100, 8, function () {
+            move(oImage, false, 100, 8, function () {
+                people_go = setInterval(peopleGo, 100);
+            })
+        })
+    }
+
+    function init() {
+        var speed = 5;
+        var fenshu = 0;
+		flag = false;
+        window.people_go = setInterval(peopleGo, 100);
+        window.smashTogether_id = setInterval(smashTogether); // 监控是否碰撞
+        // 物体开始移动
+        window.obstacle_id = setInterval(function () {
+            var obstacle = document.getElementsByClassName('obstacle');
+            if (obstacle.length <= 0) {
+                getObstacle();
+                obstacleMove(speed)
+            }
+        }, 10);
+        window.score_id = setInterval(function () {
+            fenshu += 1;
+            var score = document.getElementById('score');
+            score.innerHTML = fenshu;
+            // console.log(fenshu%100);
+            if (fenshu%100 ===0){
+                speed -= 0.1
+                if (speed <0){
+                    speed = 0.1
+                }
+                console.log(speed)
+            }
+        }, 500);
+    }
+
+    window.onkeydown = function (ev) {
+        var oEvent = ev || window.event;
+        var k = oEvent.which || oEvent.keyCode;
+        switch (k) {
+            case 32:  // 空格
+                var top = oImage.offsetTop;
+                if (top === 376) {
+                    jump()
+                    sound()
+                }
+                break;
+            case 13:  // enter键
+				if (flag===true){
+					init();
+				}
+                break;
+        }
+    }
+
+</script>
+</html>
